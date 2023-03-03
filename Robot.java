@@ -27,6 +27,15 @@ import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import com.revrobotics.AbsoluteEncoder;
 import com.revrobotics.SparkMaxAbsoluteEncoder;
 
+//Camera imports
+import edu.wpi.first.cameraserver.CameraServer;
+import edu.wpi.first.cscore.UsbCamera;
+import edu.wpi.first.cscore.VideoSink;
+import edu.wpi.first.cscore.MjpegServer;
+
+
+
+
 
 
 
@@ -86,6 +95,26 @@ public class Robot extends TimedRobot {
   //ADIS16470_IMU gyro = new ADIS16470_IMU();
   double slowArm = 0.25;
 
+  //UsbCamera camera1 = new UsbCamera(kCustomAuto, 0);
+  //UsbCamera camera2 = new UsbCamera(kCustomAuto, 1);
+  //VideoSink server;
+  
+  // Creates UsbCamera and MjpegServer [1] and connects them
+/* UsbCamera usbCamera = new UsbCamera("USB Camera 0", 0);
+MjpegServer mjpegServer1 = new MjpegServer("serve_USB Camera 0", 1181);
+mjpegServer1.setSource(usbCamera);
+
+// Creates the CvSink and connects it to the UsbCamera
+CvSink cvSink = new CvSink("opencv_USB Camera 0");
+cvSink.setSource(usbCamera);
+
+// Creates the CvSource and MjpegServer [2] and connects them
+CvSource outputStream = new CvSource("Blur", PixelFormat.kMJPEG, 640, 480, 30);
+MjpegServer mjpegServer2 = new MjpegServer("serve_Blur", 1182);
+mjpegServer2.setSource(outputStream); */
+
+
+
   /**
    * This function is run when the robot is first started up and should be used for any
    * initialization code.
@@ -95,10 +124,15 @@ public class Robot extends TimedRobot {
     m_chooser.setDefaultOption("Default Auto", kDefaultAuto);
     m_chooser.addOption("My Auto", kCustomAuto);
     SmartDashboard.putData("Auto choices", m_chooser);
+    m_rearRight.setInverted(true);
     m_rightArm_Follower.follow(m_leftArm_Leader, true);//The right arm motor matches voltage and inverts direction of the left arm
     //NOTE: All speed commands to the motors should use the m_leftArm_Leader
     m_Encoder.setDistancePerRotation(0.2083333333333333);
 
+    /* camera1 = CameraServer.startAutomaticCapture(0);
+    camera2 = CameraServer.startAutomaticCapture(1); */
+    CameraServer.startAutomaticCapture();
+  
     //encoder.setDistancePerPulse(1./4096.);
     //gyro.calibrate();   
   }
@@ -240,7 +274,7 @@ public class Robot extends TimedRobot {
     //Arm Extend Code: Right Stick Y = Power. Holding Right Bumper will increase the rotation speed
     //Status: Complete 2/25/2023
     //NOTE: All speed commands to the motors should use the m_leftArm_Leader
-    double slowWinch = 0.5; //slowArm value <1 modifies the arm rotation speed (0.5 = half speed)
+   /* double slowWinch = 0.5; //slowArm value <1 modifies the arm rotation speed (0.5 = half speed)
     if (m_armController.getRightBumper() == true && TurboAllowed)
     {
       m_armWinch.set((m_armController.getRightY()));
@@ -249,7 +283,7 @@ public class Robot extends TimedRobot {
     { 
       m_armWinch.set((m_armController.getRightY()*slowWinch));
     }  
-
+*/
 
     //Limit Switch Code: When limit switch is engaged, check Left Stick input and stop motor continuing into the switch
     //Status: Complete 2/25/2023
@@ -277,23 +311,35 @@ public class Robot extends TimedRobot {
     if(m_armController.getXButton()) {
       m_handWrist.set(-0.1);
     }
+    else {
+      m_handWrist.set(0);
+    }
     //Turns the wrist right
     if(m_armController.getBButton()) {
       m_handWrist.set(0.1);
     }
+    else {
+      m_handWrist.set(0);
+    }
 
     if((m_armController.getRightTriggerAxis() > 0.05) && (m_armController.getLeftTriggerAxis() < 0.05))
     {
-      m_handgripper.set(m_armController.getRightTriggerAxis() * 0.25);
+      m_handgripper.set(m_armController.getRightTriggerAxis() * 0.2);
+    }
+    else {
+      m_handgripper.set(0);
     }
 
-    if(m_armController.getLeftTriggerAxis() > 0.05)
+    if((m_armController.getLeftTriggerAxis() > 0.05) && (m_armController.getRightTriggerAxis() < 0.05))
     {
-      m_handgripper.set(m_armController.getLeftTriggerAxis() * -0.25);
+      m_handgripper.set(m_armController.getLeftTriggerAxis() * -0.2);
+    }
+    else {
+      m_handgripper.set(0);
     }
     
     
-    
+    //m_handgripper.set((m_armController.getRightY()*0.20));
 
 
     
