@@ -76,7 +76,8 @@ public class Robot extends TimedRobot {
   //Using Leader-Follower commands
   CANSparkMax m_leftArm_Leader = new CANSparkMax(5, MotorType.kBrushless);
   CANSparkMax m_rightArm_Follower = new CANSparkMax(6, MotorType.kBrushless);
-  
+  MotorControllerGroup m_arm = new MotorControllerGroup(m_leftArm_Leader, m_rightArm_Follower);
+
   //INITIALIZATIONS FOR THE ARM WINCH
   CANSparkMax m_armWinch = new CANSparkMax(7, MotorType.kBrushless);
 
@@ -93,7 +94,6 @@ public class Robot extends TimedRobot {
   private static final boolean TurboAllowed = false;
 
   //ADIS16470_IMU gyro = new ADIS16470_IMU();
-  double slowArm = 0.25;
 
   //UsbCamera camera1 = new UsbCamera(kCustomAuto, 0);
   //UsbCamera camera2 = new UsbCamera(kCustomAuto, 1);
@@ -125,8 +125,7 @@ mjpegServer2.setSource(outputStream); */
     m_chooser.addOption("My Auto", kCustomAuto);
     SmartDashboard.putData("Auto choices", m_chooser);
     m_rearRight.setInverted(true);
-    m_rightArm_Follower.follow(m_leftArm_Leader, true);//The right arm motor matches voltage and inverts direction of the left arm
-    //NOTE: All speed commands to the motors should use the m_leftArm_Leader
+    m_rightArm_Follower.setInverted(true);
     m_Encoder.setDistancePerRotation(0.2083333333333333);
 
     /* camera1 = CameraServer.startAutomaticCapture(0);
@@ -204,145 +203,109 @@ mjpegServer2.setSource(outputStream); */
   @Override
   public void teleopPeriodic() {
 
-    //Drive Code: Controller #0 Left Stick Y = Power & Right Stick X = Turn. Holding Right Bumper will increase the rotation speed
+    //Drive Code: Controller #0 Right Stick Y = Power & Right Stick X = Turn. Holding Right Bumper will increase the rotation speed
     //Status: Complete (2/23/2023) Turning set to 75% for better handling
     //DO NOT MODIFY UNTIL ALL OTHER CODE COMPLETE
     double slowDrive = 0.5; //slowDrive value <1 modifies the normal drive speed (0.5 = half speed)
     if (m_driverController.getRightBumper() == true & TurboAllowed)
-    {
-      //When Right Bumper is held, enable turbo mode
-      m_drive.arcadeDrive(-m_driverController.getRightY(), -m_driverController.getRightX()*0.5);
-    }
-   else
-    { 
-      m_drive.arcadeDrive(-(m_driverController.getRightY()*slowDrive), -(m_driverController.getRightX()*0.75*slowDrive));
-      
-    }  
-
+     {
+       //When Right Bumper is held, enable turbo mode
+       m_drive.arcadeDrive(-m_driverController.getRightY(), -m_driverController.getRightX()*0.5);
+     }
+    else
+     { 
+       m_drive.arcadeDrive(-(m_driverController.getRightY()*slowDrive), -(m_driverController.getRightX()*0.75*slowDrive));
+     }  
+    
     //Arm Rotate Code: Controller #1 Left Stick Y = Power. Holding Right Bumper will increase the rotation speed
     //Status: In progress: Basic functionality (2/22/2023)
-    //NOTE: All speed commands to the motors should use the m_leftArm_Leader
-     //slowArm value <1 modifies the arm rotation speed (0.25 = 1/4 speed)
-    
     //Encoder values should be close to 0 when vertical, (+) to the rear, and (-) to the front
     //NOTE: When the chain comes off these numbers must be found again
     //To zero encoder, put arm into vertical position and cycle power    
-    double enc_Vertical = 0.230;
-    double enc_RearLowest = 1.606;
-    double enc_FrontLowest = -1.205;
+    double enc_Vertical = 0.900;
+    double enc_RearLowest = 2.000;
+    double enc_FrontLowest = 0.300;
     double enc_position = m_Encoder.get();
     boolean DangerZone;
 
-    double slowArm = 0.5; //slowArm value <1 modifies the arm rotation speed (0.5 = half speed)
-// If the arm is moving forward and is within 0.1 rotatations of the lowest it can go in the rear, speed
+    double slowArm = 0.5;//slowArm value <1 modifies the arm rotation speed (0.5 = half speed)
+    // If the arm is moving forward and is within 0.1 rotatations of the lowest it can go in the rear, speed
     // will be set to 10% of maximum speed. Will not apply if arm is moving backwards. Does not need to apply
     // a new speed and can be completely separate from the code for moving the arm if i'm not mistaken
-    if(m_armController.getLeftY() > 0 && enc_position > (enc_RearLowest - 0.1)) {
-      slowArm = 0.1;
-      DangerZone = true;
-    }
-
-    // If the arm is moving backwards and is within 0.1 rotatations of the lowest it can go in the front, speed
-    // will be set to 10% of maximum speed. Will not apply if arm is moving forwards. Does not need to apply
-    // a new speed and can be completely separate from the code for moving the arm if i'm not mistaken
-    else if(m_armController.getLeftY() < 0 && enc_position < (enc_FrontLowest + 0.1)) {
-      slowArm = 0.1;
-      DangerZone = true;
-    }
-    else {
-      DangerZone = false;
-    }
-
-
-    /* enc_position - enc_RearLowest < .05 && -1.0*enc_position - -1.0*enc_FrontLowest < .05 */
-    if (m_armController.getRightBumper() == false && DangerZone == false)
-    {
-      slowArm = 0.5;
-    }
-
-    m_leftArm_Leader.set((m_armController.getLeftY())*slowArm);
-
-   /* else if(enc_position - enc_RearLowest < .05 && -1.0*enc_position - -1.0*enc_FrontLowest < .05)
-    {
-      slowArm = .25;
-      m_leftArm_Leader.set((m_armController.getLeftY()*slowArm));
-    }else{ // IN THE DANGER ZONE
-      slowArm = .128; // might need to be larger
-      m_leftArm_Leader.set((m_armController.getLeftY()*slowArm));
-    } */ 
+    if (Math.abs(m_armController.getLeftY()) > 0.05){ //Accounts for slight stick drift by increasing deadzone by 5%
+      if(m_armController.getLeftY() > 0 && enc_position > (enc_RearLowest - 0.1)) {
+        slowArm = 0.1;
+        DangerZone = true;
+      }
+      // If the arm is moving backwards and is within 0.1 rotatations of the lowest it can go in the front, speed
+      // will be set to 10% of maximum speed. Will not apply if arm is moving forwards. Does not need to apply
+      // a new speed and can be completely separate from the code for moving the arm if i'm not mistaken
+      else if(m_armController.getLeftY() < 0 && enc_position < (enc_FrontLowest + 0.1)) {
+        slowArm = 0.1;
+        DangerZone = true;
+      }
+      else {
+        DangerZone = false;
+      }
     
+      if (m_armController.getRightBumper() == false && DangerZone == false)
+      {
+        slowArm = 0.25;
+      }
+      
+      m_arm.set (m_armController.getLeftY()*slowArm);
+    }
+    else{ m_arm.set(0);}
+   
     //Arm Extend Code: Right Stick Y = Power. Holding Right Bumper will increase the rotation speed
     //Status: Complete 2/25/2023
     //NOTE: All speed commands to the motors should use the m_leftArm_Leader
-   /* double slowWinch = 0.5; //slowArm value <1 modifies the arm rotation speed (0.5 = half speed)
-    if (m_armController.getRightBumper() == true && TurboAllowed)
-    {
-      m_armWinch.set((m_armController.getRightY()));
-    }
-   else
-    { 
+    double slowWinch = 0.5; //slowArm value <1 modifies the arm rotation speed (0.5 = half speed)
+    if (Math.abs(m_armController.getRightY()) > 0.05){ //Accounts for slight stick drift by increasing deadzone by 5%
       m_armWinch.set((m_armController.getRightY()*slowWinch));
     }  
-*/
-
+    else { m_armWinch.set(0);}
+    
     //Limit Switch Code: When limit switch is engaged, check Left Stick input and stop motor continuing into the switch
     //Status: Complete 2/25/2023
     //LIMIT SWITCH CODE MUST BE LAST
    if (LS_front.get() == false){ //if Normally Open contact is closed
       if (-m_armController.getLeftY()> 0){//if arm is still recieving a command to move into limit switch (+y is towards front)
-        m_leftArm_Leader.set(0);//stop arm
+        m_arm.set(0);//stop arm
       }
     }
     
     if (LS_rear.get() == false){ //if Normally Open contact is closed
         if (-m_armController.getLeftY()< 0){ //if arm is still recieving a command to move into limit switch (-y is towards rear)
-        m_leftArm_Leader.set(0); //stop arm
+        m_arm.set(0); //stop arm
       }
     }
 
 
-    //Encoder Code:
-    //Status: In Progress: Goal to zero encoder when arm is vertical with chain
-    //Note encoder loses # of rotations after power cycle (e.g. position 13.5 --> 0.5)
-    /* if(m_armController.getAButton() == true) { //DO NOT HOLD BUTTON. Just tap for numbers or you will massivelly delay terminal outputs
-      System.out.printf("%.3f %n", m_Encoder.get()); //Prints Encoder output to 3 decimal places
-    } */
-    //Turns the wrist left
-    if(m_armController.getXButton()) {
+    //Grabber Code: Wrist controlled by X ( turn left) and B (turn right). Gripper controlled by right trigger (open) and left trigger (close)
+    //Status: Complete 3/4/2023
+    
+    if(m_armController.getXButton()) { //Turns the wrist left
       m_handWrist.set(-0.1);
     }
-    else {
-      m_handWrist.set(0);
-    }
-    //Turns the wrist right
-    if(m_armController.getBButton()) {
+    else if(m_armController.getBButton()){ //Turns the wrist right
       m_handWrist.set(0.1);
     }
     else {
       m_handWrist.set(0);
     }
 
-    if((m_armController.getRightTriggerAxis() > 0.05) && (m_armController.getLeftTriggerAxis() < 0.05))
-    {
-      m_handgripper.set(m_armController.getRightTriggerAxis() * 0.2);
+    if((m_armController.getRightTriggerAxis() > 0.05) && (m_armController.getLeftTriggerAxis() < 0.05)){ //Closes the gripper
+      m_handgripper.set(m_armController.getRightTriggerAxis() * 0.25);
     }
-    else {
-      m_handgripper.set(0);
-    }
-
-    if((m_armController.getLeftTriggerAxis() > 0.05) && (m_armController.getRightTriggerAxis() < 0.05))
-    {
-      m_handgripper.set(m_armController.getLeftTriggerAxis() * -0.2);
+    else if((m_armController.getLeftTriggerAxis() > 0.05) && (m_armController.getRightTriggerAxis() < 0.05)){ //Opens the gripper
+      m_handgripper.set(m_armController.getLeftTriggerAxis() * -0.25);
     }
     else {
       m_handgripper.set(0);
     }
     
-    
-    //m_handgripper.set((m_armController.getRightY()*0.20));
-
-
-    
+       
 
    //SmartDashboard.putBoolean("DangerZone", DangerZone);
    
