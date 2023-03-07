@@ -32,6 +32,11 @@ import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.cscore.UsbCamera;
 import edu.wpi.first.cscore.VideoSink;
 import edu.wpi.first.cscore.MjpegServer;
+import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.NetworkTableEntry;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.wpilibj2.command.CommandScheduler
+;
 
 
 
@@ -93,25 +98,13 @@ public class Robot extends TimedRobot {
   DigitalInput LS_rear = new DigitalInput(2);
   private static final boolean TurboAllowed = false;
 
-  //ADIS16470_IMU gyro = new ADIS16470_IMU();
+  UsbCamera camera1;
+  UsbCamera camera2;
+  NetworkTableEntry cameraSelection;
 
-  //UsbCamera camera1 = new UsbCamera(kCustomAuto, 0);
-  //UsbCamera camera2 = new UsbCamera(kCustomAuto, 1);
-  //VideoSink server;
-  
-  // Creates UsbCamera and MjpegServer [1] and connects them
-/* UsbCamera usbCamera = new UsbCamera("USB Camera 0", 0);
-MjpegServer mjpegServer1 = new MjpegServer("serve_USB Camera 0", 1181);
-mjpegServer1.setSource(usbCamera);
 
-// Creates the CvSink and connects it to the UsbCamera
-CvSink cvSink = new CvSink("opencv_USB Camera 0");
-cvSink.setSource(usbCamera);
-
-// Creates the CvSource and MjpegServer [2] and connects them
-CvSource outputStream = new CvSource("Blur", PixelFormat.kMJPEG, 640, 480, 30);
-MjpegServer mjpegServer2 = new MjpegServer("serve_Blur", 1182);
-mjpegServer2.setSource(outputStream); */
+  //Code for the cameras so it can switch
+  /* 
 
 
 
@@ -128,9 +121,9 @@ mjpegServer2.setSource(outputStream); */
     m_rightArm_Follower.setInverted(true);
     m_Encoder.setDistancePerRotation(0.2083333333333333);
 
-    /* camera1 = CameraServer.startAutomaticCapture(0);
-    camera2 = CameraServer.startAutomaticCapture(1); */
-    CameraServer.startAutomaticCapture();
+    camera1 = CameraServer.startAutomaticCapture(0);
+    camera2 = CameraServer.startAutomaticCapture(1);
+    cameraSelection = NetworkTableInstance.getDefault().getTable("").getEntry("CameraSelection");
   
     //encoder.setDistancePerPulse(1./4096.);
     //gyro.calibrate();   
@@ -203,6 +196,15 @@ mjpegServer2.setSource(outputStream); */
   @Override
   public void teleopPeriodic() {
 
+    if (m_driverController.getRightY() > 0.05) {
+      System.out.println("Setting camera 2");
+      cameraSelection.setString(camera2.getName());
+  } else if (m_driverController.getRightY() < -0.05) {
+      System.out.println("Setting camera 1");
+      cameraSelection.setString(camera1.getName());
+  }
+
+
     //Drive Code: Controller #0 Right Stick Y = Power & Right Stick X = Turn. Holding Right Bumper will increase the rotation speed
     //Status: Complete (2/23/2023) Turning set to 75% for better handling
     //DO NOT MODIFY UNTIL ALL OTHER CODE COMPLETE
@@ -210,11 +212,11 @@ mjpegServer2.setSource(outputStream); */
     if (m_driverController.getRightBumper() == true & TurboAllowed)
      {
        //When Right Bumper is held, enable turbo mode
-       m_drive.arcadeDrive(-m_driverController.getRightY(), -m_driverController.getRightX()*0.5);
+       m_drive.arcadeDrive(-m_driverController.getRightY(), -m_driverController.getRightX()*0.5, true);
      }
     else
      { 
-       m_drive.arcadeDrive(-(m_driverController.getRightY()*slowDrive), -(m_driverController.getRightX()*0.75*slowDrive));
+       m_drive.arcadeDrive(-(m_driverController.getRightY()*slowDrive), -(m_driverController.getRightX()*0.75*slowDrive), true);
      }  
     
     //Arm Rotate Code: Controller #1 Left Stick Y = Power. Holding Right Bumper will increase the rotation speed
@@ -228,7 +230,8 @@ mjpegServer2.setSource(outputStream); */
     double enc_position = m_Encoder.get();
     boolean DangerZone;
 
-    double slowArm = 0.5;//slowArm value <1 modifies the arm rotation speed (0.5 = half speed)
+    double slowArm = 0;
+    //slowArm value <1 modifies the arm rotation speed (0.5 = half speed)
     // If the arm is moving forward and is within 0.1 rotatations of the lowest it can go in the rear, speed
     // will be set to 10% of maximum speed. Will not apply if arm is moving backwards. Does not need to apply
     // a new speed and can be completely separate from the code for moving the arm if i'm not mistaken
@@ -253,9 +256,10 @@ mjpegServer2.setSource(outputStream); */
         slowArm = 0.25;
       }
       
-      m_arm.set (m_armController.getLeftY()*slowArm);
+      m_arm.set(m_armController.getLeftY()*slowArm);
+    }else{ 
+      m_arm.set(0);
     }
-    else{ m_arm.set(0);}
    
     //Arm Extend Code: Right Stick Y = Power. Holding Right Bumper will increase the rotation speed
     //Status: Complete 2/25/2023
@@ -265,6 +269,7 @@ mjpegServer2.setSource(outputStream); */
       m_armWinch.set((m_armController.getRightY()*slowWinch));
     }  
     else { m_armWinch.set(0);}
+    
     
     //Limit Switch Code: When limit switch is engaged, check Left Stick input and stop motor continuing into the switch
     //Status: Complete 2/25/2023
