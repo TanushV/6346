@@ -94,8 +94,8 @@ public class Robot extends TimedRobot {
   private DutyCycleEncoder m_Encoder = new DutyCycleEncoder(0);
 
   //Initializations for Limit Switches
-  DigitalInput LS_front = new DigitalInput(1);
-  DigitalInput LS_rear = new DigitalInput(2);
+  DigitalInput LS_front = new DigitalInput(0);
+  DigitalInput LS_rear = new DigitalInput(1);
   private static final boolean TurboAllowed = false;
 
   UsbCamera camera1;
@@ -196,14 +196,13 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopPeriodic() {
 
-    if (m_driverController.getRightY() > 0.05) {
+    if (m_driverController.getRightY() > 0.1) {
       System.out.println("Setting camera 2");
       cameraSelection.setString(camera2.getName());
-  } else if (m_driverController.getRightY() < -0.05) {
+  } else if (m_driverController.getRightY() < -0.1) {
       System.out.println("Setting camera 1");
       cameraSelection.setString(camera1.getName());
   }
-
 
     //Drive Code: Controller #0 Right Stick Y = Power & Right Stick X = Turn. Holding Right Bumper will increase the rotation speed
     //Status: Complete (2/23/2023) Turning set to 75% for better handling
