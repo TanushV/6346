@@ -35,8 +35,7 @@ import edu.wpi.first.cscore.MjpegServer;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
-import edu.wpi.first.wpilibj2.command.CommandScheduler
-;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
 
 
 
@@ -94,8 +93,8 @@ public class Robot extends TimedRobot {
   private DutyCycleEncoder m_Encoder = new DutyCycleEncoder(0);
 
   //Initializations for Limit Switches
-  DigitalInput LS_front = new DigitalInput(0);
-  DigitalInput LS_rear = new DigitalInput(1);
+  DigitalInput LS_front = new DigitalInput(1);
+  DigitalInput LS_rear = new DigitalInput(2);
   private static final boolean TurboAllowed = false;
 
   UsbCamera camera1;
@@ -215,7 +214,7 @@ public class Robot extends TimedRobot {
      }
     else
      { 
-       m_drive.arcadeDrive(-(m_driverController.getRightY()*slowDrive), -(m_driverController.getRightX()*0.75*slowDrive), true);
+       m_drive.arcadeDrive(-(m_driverController.getRightY()*0.8), -(m_driverController.getRightX()*slowDrive), true);
      }  
     
     //Arm Rotate Code: Controller #1 Left Stick Y = Power. Holding Right Bumper will increase the rotation speed
