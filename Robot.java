@@ -37,6 +37,8 @@ import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 
+import edu.wpi.first.math.trajectory.*;
+
 
 
 
@@ -97,16 +99,28 @@ public class Robot extends TimedRobot {
   DigitalInput LS_rear = new DigitalInput(2);
   private static final boolean TurboAllowed = false;
 
-  UsbCamera camera1;
+
+
+
+
+
+  //RelativeEncoder Grip_Encoder = m_handgripper.getEncoder(SparkMaxRelativeEncoder.Type.kHallSensor, 42);
+  //RelativeEncoder Winch_Encoder = m_armWinch.getEncoder(SparkMaxRelativeEncoder.Type.kHallSensor, 42);
+
+
+
+
+
+
+
+
+  /* UsbCamera camera1;
   UsbCamera camera2;
-  NetworkTableEntry cameraSelection;
+  NetworkTableEntry cameraSelection;  */
 
 
   //Code for the cameras so it can switch
   /* 
-
-
-
   /**
    * This function is run when the robot is first started up and should be used for any
    * initialization code.
@@ -117,13 +131,36 @@ public class Robot extends TimedRobot {
     m_chooser.addOption("My Auto", kCustomAuto);
     SmartDashboard.putData("Auto choices", m_chooser);
     m_rearRight.setInverted(true);
+
+
     m_rightArm_Follower.setInverted(true);
     m_Encoder.setDistancePerRotation(0.2083333333333333);
 
-    camera1 = CameraServer.startAutomaticCapture(0);
+
+
+
+
+
+
+
+
+    //Grip_Encoder.setPosition(0);
+
+
+
+
+
+
+
+
+
+
+
+   /*  camera1 = CameraServer.startAutomaticCapture(0);
     camera2 = CameraServer.startAutomaticCapture(1);
-    cameraSelection = NetworkTableInstance.getDefault().getTable("").getEntry("CameraSelection");
+    cameraSelection = NetworkTableInstance.getDefault().getTable("").getEntry("CameraSelection"); */
   
+    CameraServer.startAutomaticCapture();
     //encoder.setDistancePerPulse(1./4096.);
     //gyro.calibrate();   
   }
@@ -143,7 +180,11 @@ public class Robot extends TimedRobot {
     SmartDashboard.putBoolean("Rear Limit Switch", LS_rear.get());
     SmartDashboard.putNumber("Drive X Axis", m_driverController.getRightX());
     SmartDashboard.putNumber("Drive Y Axis", m_driverController.getRightY());
-    
+    SmartDashboard.putNumber("grabin", m_armController.getRightTriggerAxis());
+    SmartDashboard.putNumber("grabout", m_armController.getLeftTriggerAxis());
+    SmartDashboard.putNumber("Arm Position", m_Encoder.get());
+
+
 
 
 
@@ -174,7 +215,43 @@ public class Robot extends TimedRobot {
      
     switch (m_autoSelected) {
       case kCustomAuto:
-        // Put custom auto code here
+
+
+       /* boolean x = true;
+      while(LS_front.get() == true){
+            m_arm.set(-0.25);
+            if(m_Encoder.get < 0.4) {
+              break;
+            }
+          }
+
+      while(x == true)
+      { 
+        if(m_Encoder.get() < 1.7) {
+          m_arm.set(0.25);
+          if(LS_rear.get() == false){
+            m_arm.set(0);
+            break;
+          }
+        }
+        else {
+          m_arm.set(0);
+          x = false;
+        }
+      }
+      x = true;
+      while(x == true){
+        if(Grip_Encoder.getPosition() < 5) {
+          m_handgripper.set(0.25);
+        }
+        else {
+          m_arm.set(0);
+          x = false;
+        }
+      } */
+
+
+        
         break;
       case kDefaultAuto:
         
@@ -195,13 +272,13 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopPeriodic() {
 
-    if (m_driverController.getRightY() > 0.1) {
+  /* if (m_driverController.getRightY() > 0.1) {
       System.out.println("Setting camera 2");
       cameraSelection.setString(camera2.getName());
   } else if (m_driverController.getRightY() < -0.1) {
       System.out.println("Setting camera 1");
       cameraSelection.setString(camera1.getName());
-  }
+  } */
 
     //Drive Code: Controller #0 Right Stick Y = Power & Right Stick X = Turn. Holding Right Bumper will increase the rotation speed
     //Status: Complete (2/23/2023) Turning set to 75% for better handling
@@ -214,7 +291,7 @@ public class Robot extends TimedRobot {
      }
     else
      { 
-       m_drive.arcadeDrive(-(m_driverController.getRightY()*0.8), -(m_driverController.getRightX()*slowDrive), true);
+       m_drive.arcadeDrive(-(m_driverController.getRightY()*0.8), -(m_driverController.getRightX()*0.8), true);
      }  
     
     //Arm Rotate Code: Controller #1 Left Stick Y = Power. Holding Right Bumper will increase the rotation speed
@@ -289,20 +366,20 @@ public class Robot extends TimedRobot {
     //Status: Complete 3/4/2023
     
     if(m_armController.getXButton()) { //Turns the wrist left
-      m_handWrist.set(-0.1);
+      m_handWrist.set(-0.12);
     }
     else if(m_armController.getBButton()){ //Turns the wrist right
-      m_handWrist.set(0.1);
+      m_handWrist.set(0.12);
     }
     else {
       m_handWrist.set(0);
     }
 
     if((m_armController.getRightTriggerAxis() > 0.05) && (m_armController.getLeftTriggerAxis() < 0.05)){ //Closes the gripper
-      m_handgripper.set(m_armController.getRightTriggerAxis() * 0.25);
+      m_handgripper.set(m_armController.getRightTriggerAxis() * 0.4);
     }
     else if((m_armController.getLeftTriggerAxis() > 0.05) && (m_armController.getRightTriggerAxis() < 0.05)){ //Opens the gripper
-      m_handgripper.set(m_armController.getLeftTriggerAxis() * -0.25);
+      m_handgripper.set(m_armController.getLeftTriggerAxis() * -0.4);
     }
     else {
       m_handgripper.set(0);
