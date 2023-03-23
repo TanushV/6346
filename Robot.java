@@ -235,21 +235,6 @@ public class Robot extends TimedRobot {
         }
         else if (SmartDashboard.setDefaultNumber("Autonomous Number #", 2)) {
         } */
-          
-        while(FrontRightEncoder.getPosition < 115 && FrontLeftEncoder.getPosition < 115) {
-          m_frontRight.set(0.5);
-          m_frontLeft.set(0.5);
-          m_rearRight.set(0.5);
-          m_rearleft.set(0.5);
-          if(FrontRightEncoder.getPosition > 115 || FrontLeftEncoder.getPosition > 115) {
-            m_frontRight.set(0);
-            m_frontLeft.set(0);
-            m_rearRight.set(0);
-            m_rearleft.set(0);
-            break;
-          }
-          break;
-        }
       
         while(m_Encoder.get() < 2.1) {
           m_arm.set(0.25);
@@ -261,6 +246,21 @@ public class Robot extends TimedRobot {
             m_arm.set(0);
             break;
           }
+        }
+
+        while(FrontRightEncoder.getPosition() < 115 && FrontLeftEncoder.getPosition() < 115) {
+          m_frontRight.set(0.5);
+          m_frontLeft.set(0.5);
+          m_rearRight.set(0.5);
+          m_rearLeft.set(0.5);
+          if(FrontRightEncoder.getPosition() > 115 || FrontLeftEncoder.getPosition() > 115) {
+            m_frontRight.set(0);
+            m_frontLeft.set(0);
+            m_rearRight.set(0);
+            m_rearLeft.set(0);
+            break;
+          }
+          break;
         }
         m_arm.set(0);
       default:
