@@ -103,6 +103,9 @@ public class Robot extends TimedRobot {
   ADIS16470_IMU gyro = new ADIS16470_IMU();
 
   RelativeEncoder Winch_Encoder = m_armWinch.getEncoder(SparkMaxRelativeEncoder.Type.kHallSensor, 42);
+  RelativeEncoder FrontRightEncoder = m_armWinch.getEncoder(SparkMaxRelativeEncoder.Type.kHallSensor, 42);
+  RelativeEncoder FrontLeftEncoder = m_armWinch.getEncoder(SparkMaxRelativeEncoder.Type.kHallSensor, 42);
+
 
 
   /* UsbCamera camera1;
@@ -201,7 +204,6 @@ public class Robot extends TimedRobot {
               break;
             }
           }
-
       while(x == true)
       { 
         if(m_Encoder.get() < 1.7) {
@@ -230,12 +232,24 @@ public class Robot extends TimedRobot {
       case kDefaultAuto:
 
         /* if (SmartDashboard.setDefaultNumber("Autonomous Number #", 1)) {
-
         }
         else if (SmartDashboard.setDefaultNumber("Autonomous Number #", 2)) {
-
         } */
           
+        while(FrontRightEncoder.getPosition < 115 && FrontLeftEncoder.getPosition < 115) {
+          m_frontRight.set(0.5);
+          m_frontLeft.set(0.5);
+          m_rearRight.set(0.5);
+          m_rearleft.set(0.5);
+          if(FrontRightEncoder.getPosition > 115 || FrontLeftEncoder.getPosition > 115) {
+            m_frontRight.set(0);
+            m_frontLeft.set(0);
+            m_rearRight.set(0);
+            m_rearleft.set(0);
+            break;
+          }
+          break;
+        }
       
         while(m_Encoder.get() < 2.1) {
           m_arm.set(0.25);
@@ -358,16 +372,13 @@ public class Robot extends TimedRobot {
     if(m_controller.getLeftBumper()) {
       double TheYaw = gyro.getAngle();
       if(TheYaw > 0.05){
-
       }
       else if(TheYaw < -0.05) {
-
       }
       else {
         m_frontLeft.set(0);
       }
       
-
     } */
     
        
@@ -412,5 +423,3 @@ public class Robot extends TimedRobot {
   @Override
   public void simulationPeriodic() {}
 }
-
-
