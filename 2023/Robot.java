@@ -87,39 +87,38 @@ public class Robot extends TimedRobot {
   //INITIALIZATIONS FOR THE ARM WINCH
   CANSparkMax m_armWinch = new CANSparkMax(7, MotorType.kBrushless);
 
-  CANSparkMax m_handWrist = new CANSparkMax(8, MotorType.kBrushless);
-  CANSparkMax m_handgripper = new CANSparkMax(9, MotorType.kBrushless);
+  CANSparkMax m_pickup = new CANSparkMax(8, MotorType.kBrushless);
+  //CANSparkMax m_unassigned = new CANSparkMax(9, MotorType.kBrushless);
 
 
   //Absolute Encoder declaration
   private DutyCycleEncoder m_Encoder = new DutyCycleEncoder(0);
 
   //Initializations for Limit Switches
-  DigitalInput LS_front = new DigitalInput(1);
-  DigitalInput LS_rear = new DigitalInput(2);
-  private static final boolean TurboAllowed = false;
+  DigitalInput LS_front = new DigitalInput(2);
+  DigitalInput LS_rear = new DigitalInput(1);
+  private static final boolean TurboAllowed = true;
 
+  //GYRO declaration
+  ADIS16470_IMU gyro = new ADIS16470_IMU();
 
+  RelativeEncoder Winch_Encoder = m_armWinch.getEncoder(SparkMaxRelativeEncoder.Type.kHallSensor, 42);
+  RelativeEncoder FrontLeftEncoder = m_frontLeft.getEncoder(SparkMaxRelativeEncoder.Type.kHallSensor, 42);
+  RelativeEncoder Pickup_Encoder = m_pickup.getEncoder(SparkMaxRelativeEncoder.Type.kHallSensor, 42);
+  RelativeEncoder armRotate_Encoder = m_leftArm_Leader.getEncoder(SparkMaxRelativeEncoder.Type.kHallSensor, 42);
 
+  double enc_wheelZero;
+  double autoMove_offset;
+  double enc_pickupZero;
+  double autoPickup_offset;
+  double enc_armRotateZero;
+  double autoRotate_offset;
+  double enc_WinchZero;
+  double autoWinch_offset;
 
+  boolean incomplete = true;
+  boolean init = true;
 
-
-  //RelativeEncoder Grip_Encoder = m_handgripper.getEncoder(SparkMaxRelativeEncoder.Type.kHallSensor, 42);
-  //RelativeEncoder Winch_Encoder = m_armWinch.getEncoder(SparkMaxRelativeEncoder.Type.kHallSensor, 42);
-
-
-
-
-
-
-
-
-  /* UsbCamera camera1;
-  UsbCamera camera2;
-  NetworkTableEntry cameraSelection;  */
-
-
-  //Code for the cameras so it can switch
   /* 
   /**
    * This function is run when the robot is first started up and should be used for any
@@ -132,37 +131,14 @@ public class Robot extends TimedRobot {
     SmartDashboard.putData("Auto choices", m_chooser);
     m_rearRight.setInverted(true);
 
-
     m_rightArm_Follower.setInverted(true);
     m_Encoder.setDistancePerRotation(0.2083333333333333);
 
+    SmartDashboard.setDefaultNumber("Autonomous Number #", 1);
 
+    gyro.calibrate();
 
-
-
-
-
-
-
-    //Grip_Encoder.setPosition(0);
-
-
-
-
-
-
-
-
-
-
-
-   /*  camera1 = CameraServer.startAutomaticCapture(0);
-    camera2 = CameraServer.startAutomaticCapture(1);
-    cameraSelection = NetworkTableInstance.getDefault().getTable("").getEntry("CameraSelection"); */
-  
     CameraServer.startAutomaticCapture();
-    //encoder.setDistancePerPulse(1./4096.);
-    //gyro.calibrate();   
   }
 
   /**
@@ -178,15 +154,10 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("Encoder Output", EncoderOutput);
     SmartDashboard.putBoolean("Front Limit Switch", LS_front.get());
     SmartDashboard.putBoolean("Rear Limit Switch", LS_rear.get());
-    SmartDashboard.putNumber("Drive X Axis", m_driverController.getRightX());
-    SmartDashboard.putNumber("Drive Y Axis", m_driverController.getRightY());
-    SmartDashboard.putNumber("grabin", m_armController.getRightTriggerAxis());
-    SmartDashboard.putNumber("grabout", m_armController.getLeftTriggerAxis());
-    SmartDashboard.putNumber("Arm Position", m_Encoder.get());
-
-
-
-
+    SmartDashboard.putNumber("Winch Encoder", Winch_Encoder.getPosition());
+    SmartDashboard.putNumber("winch zero", enc_WinchZero);
+    SmartDashboard.putNumber("Auto Winch Offset", autoWinch_offset);
+    SmartDashboard.putNumber("Arm Position", armRotate_Encoder.getPosition());
 
 
   }
@@ -206,195 +177,165 @@ public class Robot extends TimedRobot {
     m_autoSelected = m_chooser.getSelected();
     // m_autoSelected = SmartDashboard.getString("Auto Selector", kDefaultAuto);
     System.out.println("Auto selected: " + m_autoSelected);
-     
+    enc_wheelZero = FrontLeftEncoder.getPosition();
+    enc_pickupZero = Pickup_Encoder.getPosition();
+    enc_armRotateZero = armRotate_Encoder.getPosition();
+    enc_WinchZero = Winch_Encoder.getPosition();
+    incomplete = true;
   }
 
   /** This function is called periodically during autonomous. */
   @Override
   public void autonomousPeriodic() {
-     
+     if (incomplete == true){
     switch (m_autoSelected) {
       case kCustomAuto:
-
-
-       /* boolean x = true;
-      while(LS_front.get() == true){
-            m_arm.set(-0.25);
-            if(m_Encoder.get < 0.4) {
-              break;
-            }
-          }
-
-      while(x == true)
-      { 
-        if(m_Encoder.get() < 1.7) {
-          m_arm.set(0.25);
-          if(LS_rear.get() == false){
-            m_arm.set(0);
-            break;
-          }
-        }
-        else {
-          m_arm.set(0);
-          x = false;
-        }
-      }
-      x = true;
-      while(x == true){
-        if(Grip_Encoder.getPosition() < 5) {
-          m_handgripper.set(0.25);
-        }
-        else {
-          m_arm.set(0);
-          x = false;
-        }
-      } */
-
-
-        
         break;
       case kDefaultAuto:
+       
+      //Arm lowers until it hits the Front Limit Switch then stops
+        while(LS_front.get() == true){
+          m_arm.set(0.25);
+        }
+          m_arm.set(0);
+          enc_armRotateZero = armRotate_Encoder.getPosition();
         
+        //Pickup spins and spits out cargo then stops
+        autoPickup_offset = 20;
+        while(Pickup_Encoder.getPosition() < (enc_pickupZero + autoPickup_offset)){
+          m_pickup.set(0.5);
+        }
+          m_pickup.set(0);
+      
+        //Arm rotates to vertical position and then stops
+        autoRotate_offset = 60;  
+        while(armRotate_Encoder.getPosition() > (enc_armRotateZero - autoRotate_offset)) {
+          m_arm.set(-.25);
+          if(armRotate_Encoder.getPosition() < (enc_armRotateZero - autoRotate_offset)) {
+            m_arm.set(0);
+          }
+        }
+        
+        //Wheels spin and the robot drives backwards to exit the community
+        autoMove_offset = 60;
+        while(FrontLeftEncoder.getPosition() < (enc_wheelZero + autoMove_offset)) {
+          m_drive.arcadeDrive(0.50, 0);
+          if(FrontLeftEncoder.getPosition() > (enc_wheelZero + autoMove_offset)) {
+            for(int i = 0; i < 10; i++){
+            m_drive.arcadeDrive(-0.50, 0);
+            }
+          }
+        }
+        
+        m_arm.set(0);
+        m_drive.arcadeDrive(0,0);
+        incomplete = false;
         break;
       default:
-        // Put default auto code here
         break;
+      }
     }
+
   }
 
   /** This function is called once when teleop is enabled. */
   @Override
   public void teleopInit() {
-     
+    m_arm.set(0);
+    m_drive.arcadeDrive(0,0);
+    m_pickup.set(0);
   }
 
   /** This function is called periodically during operator control. */
   @Override
   public void teleopPeriodic() {
-
-  /* if (m_driverController.getRightY() > 0.1) {
-      System.out.println("Setting camera 2");
-      cameraSelection.setString(camera2.getName());
-  } else if (m_driverController.getRightY() < -0.1) {
-      System.out.println("Setting camera 1");
-      cameraSelection.setString(camera1.getName());
-  } */
-
-    //Drive Code: Controller #0 Right Stick Y = Power & Right Stick X = Turn. Holding Right Bumper will increase the rotation speed
+    
+    if (incomplete == true){
+      enc_WinchZero = Winch_Encoder.getPosition();
+      init = false;
+    }
+    
+  
+    //Drive Code: Controller #0 Left Stick Y = Power & Right Stick X = Turn. Holding Right Bumper will increase the rotation speed
     //Status: Complete (2/23/2023) Turning set to 75% for better handling
     //DO NOT MODIFY UNTIL ALL OTHER CODE COMPLETE
     double slowDrive = 0.5; //slowDrive value <1 modifies the normal drive speed (0.5 = half speed)
     if (m_driverController.getRightBumper() == true & TurboAllowed)
      {
-       //When Right Bumper is held, enable turbo mode
-       m_drive.arcadeDrive(-m_driverController.getRightY(), -m_driverController.getRightX()*0.5, true);
+       //When Right Bumper is held, enable fine turning control
+       m_drive.arcadeDrive(m_driverController.getLeftY(), -m_driverController.getRightX()*0.5, true);
      }
     else
      { 
-       m_drive.arcadeDrive(-(m_driverController.getRightY()*0.8), -(m_driverController.getRightX()*0.8), true);
+       m_drive.arcadeDrive((m_driverController.getLeftY()*0.9), -(m_driverController.getRightX()*0.8), true);
      }  
     
     //Arm Rotate Code: Controller #1 Left Stick Y = Power. Holding Right Bumper will increase the rotation speed
-    //Status: In progress: Basic functionality (2/22/2023)
-    //Encoder values should be close to 0 when vertical, (+) to the rear, and (-) to the front
-    //NOTE: When the chain comes off these numbers must be found again
-    //To zero encoder, put arm into vertical position and cycle power    
-    double enc_Vertical = 0.900;
-    double enc_RearLowest = 2.000;
-    double enc_FrontLowest = 0.300;
-    double enc_position = m_Encoder.get();
-    boolean DangerZone;
-
-    double slowArm = 0;
+    double slowArm = 0.5;
     //slowArm value <1 modifies the arm rotation speed (0.5 = half speed)
-    // If the arm is moving forward and is within 0.1 rotatations of the lowest it can go in the rear, speed
-    // will be set to 10% of maximum speed. Will not apply if arm is moving backwards. Does not need to apply
-    // a new speed and can be completely separate from the code for moving the arm if i'm not mistaken
     if (Math.abs(m_armController.getLeftY()) > 0.05){ //Accounts for slight stick drift by increasing deadzone by 5%
-      if(m_armController.getLeftY() > 0 && enc_position > (enc_RearLowest - 0.1)) {
-        slowArm = 0.1;
-        DangerZone = true;
+        m_arm.set(-m_armController.getLeftY()*slowArm);
       }
-      // If the arm is moving backwards and is within 0.1 rotatations of the lowest it can go in the front, speed
-      // will be set to 10% of maximum speed. Will not apply if arm is moving forwards. Does not need to apply
-      // a new speed and can be completely separate from the code for moving the arm if i'm not mistaken
-      else if(m_armController.getLeftY() < 0 && enc_position < (enc_FrontLowest + 0.1)) {
-        slowArm = 0.1;
-        DangerZone = true;
-      }
-      else {
-        DangerZone = false;
-      }
-    
-      if (m_armController.getRightBumper() == false && DangerZone == false)
-      {
-        slowArm = 0.25;
-      }
-      
-      m_arm.set(m_armController.getLeftY()*slowArm);
-    }else{ 
+      else{ 
       m_arm.set(0);
     }
+  
    
     //Arm Extend Code: Right Stick Y = Power. Holding Right Bumper will increase the rotation speed
     //Status: Complete 2/25/2023
     //NOTE: All speed commands to the motors should use the m_leftArm_Leader
-    double slowWinch = 0.5; //slowArm value <1 modifies the arm rotation speed (0.5 = half speed)
+    
+    if (incomplete == false){
+    double slowWinch = 1; //slowArm value <1 modifies the arm rotation speed (0.5 = half speed)
+    autoWinch_offset = -500; // Full Winch extension + extra
     if (Math.abs(m_armController.getRightY()) > 0.05){ //Accounts for slight stick drift by increasing deadzone by 5%
-      m_armWinch.set((m_armController.getRightY()*slowWinch));
+      
+      if (m_armController.getRightY()< 0 && Winch_Encoder.getPosition() < (enc_WinchZero + autoWinch_offset)){
+        m_armWinch.set(0);//stop winch
+      }
+      else if (m_armController.getRightY()> 0 && Winch_Encoder.getPosition() > (enc_WinchZero)){ //Winch Fully Retracted
+        m_armWinch.set(0);//stop winch
+      }
+      else { 
+        m_armWinch.set((m_armController.getRightY()*slowWinch));
+      }
     }  
     else { m_armWinch.set(0);}
-    
-    
+  }
+  else{
+    double slowWinch = 1; //slowArm value <1 modifies the arm rotation speed (0.5 = half speed)
+    if (Math.abs(m_armController.getRightY()) > 0.05){
+      m_armWinch.set((m_armController.getRightY()*slowWinch));
+    }
+    else { m_armWinch.set(0);}
+  }
     //Limit Switch Code: When limit switch is engaged, check Left Stick input and stop motor continuing into the switch
     //Status: Complete 2/25/2023
     //LIMIT SWITCH CODE MUST BE LAST
-   if (LS_front.get() == false){ //if Normally Open contact is closed
-      if (-m_armController.getLeftY()> 0){//if arm is still recieving a command to move into limit switch (+y is towards front)
+   if (LS_rear.get() == false){ //if Normally Open contact is closed
+      if (m_armController.getLeftY()> 0){//if arm is still recieving a command to move into limit switch (+y is towards front)
         m_arm.set(0);//stop arm
       }
     }
     
-    if (LS_rear.get() == false){ //if Normally Open contact is closed
-        if (-m_armController.getLeftY()< 0){ //if arm is still recieving a command to move into limit switch (-y is towards rear)
+    if (LS_front.get() == false){ //if Normally Open contact is closed
+        if (m_armController.getLeftY()< 0){ //if arm is still recieving a command to move into limit switch (-y is towards rear)
         m_arm.set(0); //stop arm
       }
     }
 
-
-    //Grabber Code: Wrist controlled by X ( turn left) and B (turn right). Gripper controlled by right trigger (open) and left trigger (close)
-    //Status: Complete 3/4/2023
-    
-    if(m_armController.getXButton()) { //Turns the wrist left
-      m_handWrist.set(-0.12);
+    //Pickup code
+    //Left and Right Trigger control the roller direction
+    if((m_armController.getRightTriggerAxis() > 0.05) && (m_armController.getLeftTriggerAxis() < 0.05)){ //suck in cube
+      m_pickup.set(m_armController.getRightTriggerAxis() * -0.6);
     }
-    else if(m_armController.getBButton()){ //Turns the wrist right
-      m_handWrist.set(0.12);
+    else if((m_armController.getLeftTriggerAxis() > 0.05) && (m_armController.getRightTriggerAxis() < 0.05)){ //spit out cube
+      m_pickup.set(m_armController.getLeftTriggerAxis() * +0.6);
     }
     else {
-      m_handWrist.set(0);
+      m_pickup.set(0);
     }
 
-    if((m_armController.getRightTriggerAxis() > 0.05) && (m_armController.getLeftTriggerAxis() < 0.05)){ //Closes the gripper
-      m_handgripper.set(m_armController.getRightTriggerAxis() * 0.4);
-    }
-    else if((m_armController.getLeftTriggerAxis() > 0.05) && (m_armController.getRightTriggerAxis() < 0.05)){ //Opens the gripper
-      m_handgripper.set(m_armController.getLeftTriggerAxis() * -0.4);
-    }
-    else {
-      m_handgripper.set(0);
-    }
-    
-       
-
-   //SmartDashboard.putBoolean("DangerZone", DangerZone);
-   
-
-
-
-
-
-  
      
   }
 
